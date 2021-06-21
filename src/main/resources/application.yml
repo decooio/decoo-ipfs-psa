@@ -47,6 +47,12 @@ spring:
     multipart:
       max-file-size: 500MB
       max-request-size: 510MB
+  flyway:
+    enabled: true
+    encoding: UTF-8
+    clean-disabled: true
+    table: db_migration
+    baseline-on-migrate: true
 server:
   port: 8080
   servlet:
