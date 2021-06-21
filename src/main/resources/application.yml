@@ -1,0 +1,60 @@
+spring:
+  http-client:
+    pool:
+      maxTotalConnect: 200
+      maxConnectPerRoute: 100
+      connectTimeout: 60000
+      readTimeout: 60000
+      retryTimes: 3
+      connectionRequestTimeout: 60000
+      keepAliveTime: 60
+  profiles:
+    active: prod
+  application: decoo-ipfs-psa
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      fail_on_empty_beans: false
+      WRITE_DATES_AS_TIMESTAMPS: false
+    date-format: com.decoo.psa.config.RFC3339DateFormat
+    mapper:
+      ACCEPT_CASE_INSENSITIVE_ENUMS: true
+  datasource:
+    dynamic:
+      datasource:
+        master:
+          url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/decoo?rewriteBatchedStatements=true&useUnicode=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai
+          username: ${MYSQL_USERNAME:root}
+          password: ${MYSQL_PASSWORD:root}
+          driverClassName: com.mysql.cj.jdbc.Driver
+      hikari:
+        is-auto-commit: true
+        min-idle: 5
+        max-pool-size: 15
+        idle-timeout: 30000
+        connection-timeout: 30000
+        connection-test-query: SELECT 1
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 510MB
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+mybatis-plus:
+  mapper-locations: classpath:mappers/**/*.xml
+  type-aliases-package: com.decoo.psa.domain
+  configuration:
+    map-underscore-to-camel-case: true
+  type-handlers-package: com.decoo.pas.domain.handler

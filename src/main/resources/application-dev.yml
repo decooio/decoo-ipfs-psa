@@ -1,0 +1,6 @@
+# log config
+logging:
+  config: classpath:logback-dev.xml
+  level:
+    root: debug
+    com.decooio.dao.mapper: debug
