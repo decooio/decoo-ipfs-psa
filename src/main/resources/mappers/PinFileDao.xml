@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.decoo.psa.dao.PinFileDao">
+    <update id="batchUpdateState">
+        update pin_file set state = #{state}, order_id = #{orderId} where id in
+        <foreach collection="list" item="i" separator="," open="(" close=")">
+            #{i.id}
+        </foreach>
+    </update>
+    <select id="selectPinFileCountByUserIdAndLastId" resultType="java.lang.Integer">
+        select count(*) from pin_file where
+        user_id = #{userId}
+        <if test="lastId != null">
+            and id > #{lastId}
+        </if>
+        <if test="states != null">
+            AND state in
+            <foreach collection="states" item="i" separator="," open="(" close=")">
+                #{i}
+            </foreach>
+        </if>
+    </select>
+    <sql id="pinningServiceQuery">
+        <if test="cid != null and cid.size > 0">
+            and p.ipfs_pin_hash in
+            <foreach collection="cid" item="hash" open="(" close=")" separator=",">
+                #{hash}
+            </foreach>
+        </if>
+        <if test="stateList != null and stateList.size > 0">
+            AND p.state IN
+            <foreach collection="stateList" item="s" open="(" close=")" separator=",">
+                #{s}
+            </foreach>
+        </if>
+        <if test="before != null">
+            AND <![CDATA[ p.create_at <= #{before,jdbcType=TIMESTAMP}  ]]>
+        </if>
+        <if test="after != null">
+            AND <![CDATA[ p.create_at >= #{after,jdbcType=TIMESTAMP}  ]]>
+        </if>
+        <if test="name != null">
+            AND meta_data->'$.name'=#{name}
+        </if>
+        <choose>
+            <when test="meta!=null and meta.keys.size > 0">
+                AND
+                <foreach collection="meta.entrySet()" item="value" index="key" separator="and" open="(" close=")">
+                    <bind name="json_key" value="'$.keyValues.'+key" />
+                    <choose>
+                        <when test='match == null or match == "exact"'>
+                            meta_data->#{json_key}=#{value}
+                        </when>
+                        <when test='match != null and match == "iexact"'>
+                            <bind name="json_value" value="'&quot;'+value+'&quot;'" />
+                            UPPER(meta_data->#{json_key})=UPPER(#{json_value})
+                        </when>
+                        <when test='match != null and match == "partial"'>
+                            <bind name="json_partial_value" value="'%'+value+'%'" />
+                            meta_data->#{json_key} like #{json_partial_value}
+                        </when>
+                        <when test='match != null and match == "ipartial"'>
+                            <bind name="json_ipartial_value" value="'%'+value+'%'" />
+                            UPPER(meta_data->#{json_key}) like UPPER(#{json_ipartial_value})
+                        </when>
+                        <otherwise>
+                            meta_data->#{json_key}=#{value}
+                        </otherwise>
+                    </choose>
+                </foreach>
+            </when>
+            <otherwise>
+                AND 1=1
+            </otherwise>
+        </choose>
+    </sql>
+    <select id="selectPinFileByPinningService" resultType="com.decoo.psa.domain.PinFileState">
+        SELECT
+            p.id,
+            p.file_name,
+            p.ipfs_pin_hash,
+            p.folder_pin_hash,
+            p.file_type,
+            p.third_party,
+            p.order_id,
+            p.cos_url,
+            p.meta_data,
+            p.cumulative_size,
+            p.user_id,
+            p.create_at,
+            p.state,
+            p.delete_time,
+            p.last_update_at,
+            p.pin_at,
+            p.queue_id,
+            pq.uuid,
+            pq.job_status `job_status`
+        FROM
+            pin_file p
+            JOIN pin_jobs pq ON p.queue_id = pq.id
+        WHERE
+            p.user_id = #{uid} and pq.deleted = 0
+            <include refid="pinningServiceQuery"></include>
+            limit #{limit}
+    </select>
+
+
+    <select id="selectPinFileCountByPinningService" resultType="java.lang.Integer">
+        SELECT
+        count(*)
+        FROM
+        pin_file p
+        JOIN pin_jobs pq ON p.queue_id = pq.id
+        WHERE
+        p.user_id = #{uid} and pq.deleted = 0
+        <include refid="pinningServiceQuery"></include>
+    </select>
+    <select id="selectPinFileByUserIdStatesAndTimeRange" resultType="com.decoo.psa.domain.PinFile">
+        select * from pin_file where user_id = #{uid}
+        <if test="states != null">
+            AND state in
+            <foreach collection="states" item="i" separator="," open="(" close=")">
+                #{i}
+            </foreach>
+        </if>
+        <if test="startTime != null ">
+            AND <![CDATA[ pin_at >= #{startTime,jdbcType=TIMESTAMP}  ]]>
+        </if>
+        <if test="endTime != null ">
+            AND <![CDATA[ pin_at <= #{endTime,jdbcType=TIMESTAMP}  ]]>
+        </if>
+        <choose>
+            <when test='sort == "DESC"'>
+                order by pin_at desc
+            </when>
+            <otherwise>
+                order by pin_at asc
+            </otherwise>
+        </choose>
+        limit #{offset},#{limit};
+    </select>
+    <select id="selectPinFilePageByUserIdStatesAndLastId" resultType="com.decoo.psa.domain.PinFile">
+        select * from pin_file where
+        user_id = #{userId}
+        <if test="lastId != null">
+            and id > #{lastId}
+        </if>
+        <if test="states != null">
+            AND state in
+            <foreach collection="states" item="i" separator="," open="(" close=")">
+                #{i}
+            </foreach>
+        </if>
+        ORDER BY create_at DESC
+        limit #{start}, #{pinSize}
+    </select>
+    <select id="selectPinFileSizeSumByState" resultType="java.lang.Long">
+        SELECT sum(a.cumulative_size) from (SELECT DISTINCT ipfs_pin_hash, cumulative_size from pin_file where state = #{state}) as a;
+    </select>
+    <select id="selectDistinctCidAndSizeByCode" resultType="com.decoo.psa.domain.PinFile">
+        SELECT distinct ipfs_pin_hash, cumulative_size from pin_file where state = #{state} limit #{pageSize}
+    </select>
+    <select id="selectPinFilesByCidListAndState" resultType="com.decoo.psa.domain.PinFile">
+        select * from pin_file where state = #{state}
+        and ipfs_pin_hash in
+        <foreach collection="cidList" item="cid" separator="," open="(" close=")">
+          #{cid}
+        </foreach>
+    </select>
+
+
+</mapper>
+

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.decoo.psa.dao.ApiKeyDao">
+
+    <resultMap type="com.decoo.psa.domain.ApiKey" id="KeyMap">
+        <result property="id" column="id" jdbcType="INTEGER"/>
+        <result property="userId" column="user_id" jdbcType="INTEGER"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="apiKey" column="api_key" jdbcType="VARCHAR"/>
+        <result property="apiSecret" column="api_secret" jdbcType="VARCHAR"/>
+        <result property="jwt" column="jwt" jdbcType="VARCHAR"/>
+        <result property="status" column="status" jdbcType="INTEGER"/>
+        <result property="createAt" column="create_at" jdbcType="TIMESTAMP"/>
+        <result property="lastUpdateAt" column="last_update_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <select id="selectApiKeyPageByMinIdAndUserId" resultType="com.decoo.psa.domain.ApiKey">
+        select * from api_key where
+        user_id = #{userId}
+        <if test="minId != null">
+            and id > #{minId}
+        </if>
+        ORDER BY create_at
+        limit #{start}, #{pageSize}
+    </select>
+
+</mapper>
+
